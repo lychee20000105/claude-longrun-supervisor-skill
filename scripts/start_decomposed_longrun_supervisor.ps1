@@ -117,7 +117,12 @@ function Get-RecentContext([int]$Batch) {
     $context += ""
     $context += "## Previous Manifest"
     $context += $previousManifest.FullName
-    $context += (Get-Content -LiteralPath $previousManifest.FullName -Raw -Encoding UTF8)
+    try {
+      $manifest = Get-Content -LiteralPath $previousManifest.FullName -Raw -Encoding UTF8 | ConvertFrom-Json
+      $context += ('status=' + $manifest.status + '; running=' + (@($manifest.running).Count) + '; completed=' + (@($manifest.completed).Count) + '; remaining=' + (@($manifest.remaining).Count))
+    } catch {
+      $context += 'manifest summary unavailable; inspect only if needed'
+    }
   }
   $previousAudit = Get-ChildItem -LiteralPath $AuditsDir -Filter '*-audit.md' -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1
   if ($previousAudit) {
@@ -125,7 +130,11 @@ function Get-RecentContext([int]$Batch) {
     $context += "## Previous Audit"
     $context += $previousAudit.FullName
     $auditText = Get-Content -LiteralPath $previousAudit.FullName -Raw -Encoding UTF8
-    if ($auditText.Length -gt 12000) { $auditText = $auditText.Substring($auditText.Length - 12000) }
+    if ($auditText -match '(?s)## Supervisor Digest\s*(.*?)(\r?\n## |\z)') {
+      $auditText = $Matches[0]
+    } elseif ($auditText.Length -gt 1600) {
+      $auditText = $auditText.Substring(0, 1600)
+    }
     $context += $auditText
   }
   return ($context -join [Environment]::NewLine)
@@ -166,7 +175,7 @@ $Batch
 
 ## Required Output
 
-First write short human-readable reasoning.
+First write no more than 8 concise bullets of reasoning.
 
 Then output exactly one fenced `json` block following this schema:
 
@@ -189,6 +198,8 @@ Then output exactly one fenced `json` block following this schema:
 
 ## Recent Context
 $recentContext
+
+Use recent context as a compact hint only. Do not read raw manifests, full outputs, or full diffs unless needed for a specific blocker, failed validation, safety issue, or missing evidence.
 "@ | Set-Content -LiteralPath $file -Encoding UTF8
   return $file
 }

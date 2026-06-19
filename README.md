@@ -206,6 +206,17 @@ powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\claude-
 
 当前 Skill 版本见 `SKILL.md` 的 `## Version`。本仓库要求所有 Skill 更新都同步版本号和详细变更说明。
 
+## Token-floor Status Reads
+
+Since 0.6.0, the upper-layer supervisor should read compact state first: `token-budget-summary.json`, `longrun-status.json`, and the latest `Supervisor Digest`. Do not open full worker outputs, logs, or diffs by default.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\claude-longrun-supervisor\scripts\read_decision_packet.ps1" `
+  -OutputRoot "C:\path\to\repo\.longrun"
+```
+
+Open detailed artifacts only when the packet shows a blocker, failed validation, safety risk, publish blockage, or the user asks for evidence. The old full runbook is preserved in `references/full-runbook-pre-0.6.0.md`; do not load it during normal runs.
+
 ## License
 
 MIT

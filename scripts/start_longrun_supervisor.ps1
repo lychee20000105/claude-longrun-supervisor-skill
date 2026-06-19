@@ -104,6 +104,8 @@ $Mode
 
 $recentText
 
+Read compact state before raw artifacts. Start with `token-budget-summary.json`, `longrun-status.json`, `longrun-progress.md`, and `resume-prompt.md`. Open recent outputs only when their digest or status says a blocker, failure, safety risk, or missing evidence needs detail.
+
 ## Rules
 
 - You are Claude CLI, the fixed local worker.
@@ -116,21 +118,26 @@ $recentText
 
 ## Task
 
-1. Read `resume-prompt.md`, `longrun-progress.md`, recent outputs, and recent test results if they exist.
+1. Read compact state first: `token-budget-summary.json`, `resume-prompt.md`, `longrun-progress.md`, and relevant digest sections only.
 2. Decide a small useful next task aligned with the objective and current mode.
 3. Execute it locally.
 4. Run relevant validation.
-5. Write round output to this same output file's intended path via stdout and update maintenance files.
-6. Include pass/fail counts, modified files, commands, risks, and next-round recommendation.
+5. Write round output via stdout and update maintenance files.
+6. Update `token-budget-summary.json` with a <=1200 character latest digest.
 
 ## Required stdout shape
 
-- Whether code/config/docs changed.
-- Modified files.
-- Commands run.
-- Validation results.
-- Risks.
-- Next recommended task.
+Begin with exactly this compact section:
+
+## Supervisor Digest
+- Decision needed: none|supervisor|user
+- Changed files: ...
+- Validation: pass/fail + commands
+- Publish: not attempted|pushed|blocked
+- Blockers: ...
+- Next: continue|rework|audit|drain|stop
+
+Then add concise details only for commands, validation, risks, and next action. Do not paste full logs or full diffs; write artifact paths instead.
 "@ | Set-Content -LiteralPath $promptPath -Encoding UTF8
   return $promptPath
 }
@@ -154,7 +161,7 @@ $recentText
 
 ## Audit requirements
 
-1. Read recent outputs, progress, test results, and git diff/status.
+1. Read compact state and Supervisor Digests first; inspect raw outputs or diffs only when needed to verify a concrete risk.
 2. Check whether modifications are reasonable and documented.
 3. Check whether validation evidence is strong enough.
 4. Check for safety boundary violations.
@@ -162,6 +169,14 @@ $recentText
 6. Write a concise structured audit report.
 
 ## Required stdout shape
+
+## Supervisor Digest
+- Decision needed: none|supervisor|user
+- Changed files: ...
+- Validation: pass/fail + commands
+- Publish: not attempted|pushed|blocked
+- Blockers: ...
+- Next: continue|rework|audit|drain|stop
 
 # Audit Report
 

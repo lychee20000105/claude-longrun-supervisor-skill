@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.0 - 2026-06-20
+
+- Reworked the Skill into token-floor mode: `SKILL.md` is now a compact operating guide instead of the full historical runbook.
+- Preserved the prior full instructions in `references/full-runbook-pre-0.6.0.md` for rare fallback/debug reads.
+- Added `scripts/read_decision_packet.ps1` to emit one bounded supervisor-facing packet from status, token summary, and recent digests.
+- Tightened worker, decomposition, parallel, and audit prompts to require `Supervisor Digest`, summary-first reads, and artifact paths instead of pasted full logs/diffs.
+- Kept the remote 0.4.3 adaptive cadence documentation and local 0.5.0 token-budget behavior while making 0.6.0 the active lightweight entrypoint.
+
 ## 0.4.3 - 2026-06-19
 
 - Added adaptive supervisor check cadence: default 20-minute checks, quiet healthy 30-minute checks, and 5-minute fast checks only for fresh bugs, failures, empty rounds, audit/drain/final states, or suspected stuck states.

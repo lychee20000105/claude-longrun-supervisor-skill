@@ -113,7 +113,9 @@ $depsText
 - Only work inside the declared write scopes unless the task is read-only.
 - Do not revert or overwrite work from other workers.
 - If you need a scope outside your assignment, stop and document the request.
-- Document every modified file, command, validation result, risk, and next step in your output.
+- Start output with a `## Supervisor Digest` section of at most 12 lines.
+- Document every modified file, command, validation result, risk, and next step concisely after the digest.
+- Do not paste full logs or full diffs; write artifact paths and compact findings instead.
 - Do not push, deploy, publish, permanently delete, expose secrets, or mutate production data.
 - If you install dependencies, run web searches, modify system config, or create commits, document exact commands and rollback notes.
 
