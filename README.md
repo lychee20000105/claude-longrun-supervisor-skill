@@ -196,3 +196,13 @@ powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\claude-
 ## License
 
 MIT
+
+## 版本档案 / Release History
+
+本项目后续更新默认保留历史文案，不覆盖原始上传内容。每个有意义的版本都会优先通过以下位置叠加记录：
+
+- GitHub Releases：https://github.com/lychee20000105/claude-longrun-supervisor-skill/releases
+- CHANGELOG.md
+- docs/releases/
+
+README 只保留当前版本入口和必要说明；历史版本细节按版本向上叠加，方便像 release 页面一样查看完整演进记录。
