@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.2 - 2026-06-19
+
+- Rebuilt `README.md` in UTF-8 to fix Chinese text that had been written as literal question marks.
+- Added README notes documenting the encoding root cause and prevention method.
+- Added `.gitattributes` for text file consistency.
+- Added a hard `Supervisor Non-Execution Boundary`: Codex supervisors must not directly read source code, large diffs, test logs, runtime logs, or stack traces when this Skill is active.
+- Added explicit `codex://threads/...` handoff behavior: receiving Codex threads inherit goal mode and must delegate code/log/diff inspection to Claude CLI discovery/audit workers.
+
 ## 0.4.1 - 2026-06-19
 
 - Added Codex-specific guidance: when Codex is the upper-layer supervisor and goal tools are available, fixed-duration long-running local tasks should default to goal mode.

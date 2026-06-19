@@ -147,6 +147,34 @@ Codex should:
 
 This rule is Codex-specific. Other supervisors may use their own equivalent objective/session tracking mechanism.
 
+
+## Supervisor Non-Execution Boundary
+
+For this skill, the upper-layer supervisor is a decision maker, not an implementation worker. This is a hard behavioral boundary, especially for Codex.
+
+Codex supervisors must not directly inspect task implementation evidence unless the user explicitly overrides this skill rule.
+
+Forbidden for Codex supervisors by default:
+
+- Opening source files to understand implementation details.
+- Reading large diffs directly.
+- Reading test logs, build logs, runtime logs, or stack traces directly.
+- Searching the codebase to discover root causes.
+- Running implementation/debug commands directly.
+- Manually splitting work by reading code when a decomposition worker can do it.
+
+Allowed for Codex supervisors:
+
+- Reading this `SKILL.md` and its direct reference files.
+- Reading status files, heartbeat files, progress files, manifests, worker outputs, audit reports, and final summaries.
+- Reading small metadata such as file names, timestamps, process IDs, command exit states, and Git status summaries.
+- Making decisions from Claude CLI discovery/audit reports.
+- Creating goals, launching scripts, approving/rejecting plans, selecting next direction, and closing the work.
+
+If Codex needs implementation evidence, it must create a Claude CLI discovery or audit task that reads the code/diff/logs and writes a concise report. Codex then reads that report and decides.
+
+When work is handed to another Codex thread, including a `codex://threads/...` handoff, the receiving thread inherits this same boundary: use goal mode, read state/report artifacts, and delegate code/log/diff reading to Claude CLI.
+
 ## State Machine
 
 Use these states:
@@ -663,7 +691,35 @@ Final summary must include:
 
 ## Version
 
-Current version: `0.4.1`
+Current version: `0.4.2`
+
+### 0.4.2 - 2026-06-19
+
+Encoding fix and stricter Codex non-execution boundary added.
+
+Design rationale:
+
+- The public README previously displayed Chinese text as `????` because the content had already been written as literal question marks before GitHub rendered it. The fix is to rebuild the file as UTF-8 and document a repeatable prevention method.
+- The skill also needed a stronger bottom-level behavioral rule: Codex supervisors must not personally inspect code, diffs, logs, or test output when using this skill. Those activities are Claude CLI worker/audit labor.
+- This prevents a Codex handoff thread from violating the intended architecture by doing implementation discovery directly.
+
+Behavioral changes:
+
+- Added `Supervisor Non-Execution Boundary` as a hard rule for Codex and other upper-layer supervisors.
+- Codex may read state, heartbeat, progress, manifests, worker outputs, audit reports, final summaries, and small metadata only.
+- If implementation evidence is needed, Codex must delegate code/diff/log/test reading to a Claude CLI discovery or audit worker.
+- `codex://threads/...` handoff receivers inherit the same goal-mode and non-execution boundary.
+
+Repository/documentation changes:
+
+- Rebuilt `README.md` as UTF-8 text.
+- Added encoding repair/prevention notes to the public README.
+- Added `.gitattributes` in the open-source repository to reduce text encoding and line-ending confusion.
+
+Validation:
+
+- `quick_validate.py` should pass for the skill folder.
+- README should contain Chinese text, not literal `????` runs.
 
 ### 0.4.1 - 2026-06-19
 
