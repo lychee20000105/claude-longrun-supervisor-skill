@@ -1,0 +1,20 @@
+# Local run artifacts
+.longrun/
+work/
+logs/
+*.log
+*.pid
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Secrets
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
