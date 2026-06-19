@@ -131,6 +131,22 @@ Use this structure:
     └── round001-A-stderr.log
 ```
 
+
+## Codex Goal Mode
+
+When the upper-layer supervisor is Codex and the runtime exposes goal tools, default to goal mode for fixed-duration long-running local tasks.
+
+Codex should:
+
+- Create one goal for the concrete long-run objective before launching decomposition or Claude CLI workers.
+- Treat the goal as the supervision container for status decisions, audit decisions, and final completion.
+- Keep the goal active while Claude CLI workers are still producing useful output.
+- Mark the goal `complete` only after draining, final audit, and final user-facing summary are finished.
+- Mark the goal `blocked` only when the same blocking condition repeats for the runtime's required threshold and no useful Claude CLI work can continue.
+- Avoid using goal mode for casual discussion, one-off explanations, or non-execution brainstorming.
+
+This rule is Codex-specific. Other supervisors may use their own equivalent objective/session tracking mechanism.
+
 ## State Machine
 
 Use these states:
@@ -647,7 +663,26 @@ Final summary must include:
 
 ## Version
 
-Current version: `0.4.0`
+Current version: `0.4.1`
+
+### 0.4.1 - 2026-06-19
+
+Codex goal-mode default added.
+
+Design rationale:
+
+- When Codex is the upper-layer supervisor, fixed-duration long-running work should be tracked as an explicit goal so progress, completion, and blocking decisions are not lost across long supervision loops.
+- Goal mode matches the intended separation of responsibilities: Codex owns the objective and decisions, while Claude CLI performs decomposition-heavy, execution-heavy, and audit-heavy labor.
+
+Behavioral changes:
+
+- Codex supervisors should create a goal before launching long-run decomposition or Claude CLI workers when goal tools are available.
+- Codex should close the goal only after draining, final audit, and final user-facing summary.
+- Goal mode is not required for casual discussion or non-execution planning.
+
+Validation:
+
+- `quick_validate.py` should pass for the skill folder.
 
 ### 0.4.0 - 2026-06-19
 
