@@ -194,7 +194,7 @@ planning -> running -> auditing -> draining -> final_audit -> completed
 
 - Require an explicit total duration from the user, such as `2h`, `6h`, or `12h`.
 - Plan each worker task for 30 minutes or less, but do not treat 30 minutes as a hard kill line.
-- Check status every 5 minutes.
+- Use adaptive status checks instead of a fixed 5-minute loop: start around 20 minutes, relax to 30 minutes during quiet healthy runs, and use 5-minute checks only after fresh user-reported bugs, failed/empty rounds, audit/drain/final-audit states, or explicit risk signals.
 - If Claude CLI is clearly active, let it continue.
 - Stop a round only when it is clearly stuck, uselessly idle, fatal, spinning without a prompt, or invalid.
 - When total duration is reached, enter `draining`: do not start new rounds; wait for the current round to finish naturally unless it is stuck.
@@ -275,9 +275,16 @@ Do not use `--max-budget-usd` by default.
 
 Use model or provider settings only when the local Claude CLI setup supports them and the supervisor explicitly chooses them.
 
-## Status Check Every 5 Minutes
+## Adaptive Status Check Cadence
 
-Every 5 minutes, check:
+Do not spam status checks. Choose the next check time from task risk and recent evidence:
+
+- Fresh user-reported bug, failed round, empty output after a reasonable wait, audit/drain/final-audit, or suspected stuck worker: check again in 5-10 minutes.
+- Normal healthy worker round with a live Claude child process: check every 20-30 minutes.
+- Long quiet but healthy run with recent successful rounds: check every 30 minutes unless the deadline is near.
+- Final deadline / completion audit: check immediately and gather evidence before marking complete.
+
+At each check, inspect:
 
 - Supervisor process is alive.
 - Claude CLI worker PIDs are alive.
@@ -287,7 +294,7 @@ Every 5 minutes, check:
 - Worker process tree is not spinning uselessly.
 - Total duration and drain state.
 
-Write a short heartbeat update.
+Write a short heartbeat update only when useful. Also persist `checkPolicy` and `nextSuggestedSupervisorCheckAt` in status when automation can do so.
 
 ## Audit Cadence
 
@@ -528,7 +535,7 @@ Main behavior:
 - Writes `longrun-status.json`, `longrun-heartbeat.md`, `longrun-progress.md`, and `resume-prompt.md`.
 - Creates `rounds/`, `audits/`, `test-results/`, and `logs/` folders.
 - Starts Claude CLI worker rounds with high local permissions by default.
-- Checks status every 5 minutes.
+- Uses adaptive status checks by default: 20 minutes initially, 30 minutes during quiet healthy runs, and 5 minutes only for risk signals or audit/drain/final states.
 - Triggers an audit round every 3 worker rounds and after detected changes or failures.
 - Enters draining at total duration end and waits for the active round to finish.
 - Calls `final_audit.ps1` to create `final-summary.md`.
@@ -689,9 +696,36 @@ Final summary must include:
 - Manual verification checklist.
 - Deployment/push status.
 
+## Field Lessons: Adaptive Supervision and Resume Safety
+
+When a real long-run session is active, the supervisor must balance oversight with user noise:
+
+- Do not keep reporting unchanged healthy state to the user. Persist heartbeat and progress locally, then surface summaries only at adaptive checkpoints, new failures, fresh user bug reports, or final audit.
+- A zero-byte Claude `--print` log while the child process is alive is not automatically stuck. Wait for a reasonable interval and inspect process/file activity before interrupting.
+- Never hard-code a small max round count that can end before the requested duration. Duration/deadline is the primary stop condition; round caps are only safety backstops and should be comfortably high.
+- Resume scripts must compute the next round from existing `roundNNN-task.md` files and format IDs with explicit integer conversion. Empty round IDs create files like `round-task.md`; keep anomalies as audit traces unless the user explicitly approves deletion.
+- If the user says supervisor checks are too frequent, immediately switch to adaptive cadence and write `supervisorCheckPolicy` / `nextSuggestedSupervisorCheckAt` into status.
+- Treat the installed skill directory as the source of truth. GitHub publishing is a mirror/sync step after the local skill is updated and validated.
+
 ## Version
 
-Current version: `0.4.2`
+Current version: `0.4.3`
+
+### 0.4.3 - 2026-06-19
+
+Adaptive supervision cadence and resume-safety lessons added from a real mini program long-run.
+
+Behavioral changes:
+
+- Replace fixed 5-minute status polling with adaptive status checks: 20 minutes by default, 30 minutes for quiet healthy runs, and 5 minutes only for fresh bugs, failures, empty rounds, audit/drain/final states, or suspected stuck states.
+- Persist `checkPolicy` and `nextSuggestedSupervisorCheckAt` in status files so supervisors and automations can avoid noisy repeated inspections.
+- Update sequential, decomposed, and watchdog scripts to support adaptive timing while retaining fixed timing switches for special cases.
+- Record field lessons for zero-byte live Claude logs, duration-first stop conditions, resume round numbering, and installed-skill-as-source publishing.
+
+Validation:
+
+- PowerShell parser validation should pass for all bundled `.ps1` scripts.
+- GitHub release mirror should be updated only after the installed local skill is patched and validated.
 
 ### 0.4.2 - 2026-06-19
 
@@ -829,7 +863,7 @@ Added resources:
 
 - `scripts/start_longrun_supervisor.ps1`: starts a duration-based Claude CLI long-run loop, writes state files, launches worker rounds, triggers audit rounds, drains at the deadline, and calls final audit.
 - `scripts/run_round.ps1`: launches one Claude CLI prompt with stdout/stderr/PID artifacts; can be used for manual parallel workers or focused audits.
-- `scripts/watchdog.ps1`: observes an existing long-run output root every 5 minutes by default and logs status without aggressively killing active workers.
+- `scripts/watchdog.ps1`: observes an existing long-run output root with adaptive timing by default and logs status without aggressively killing active workers.
 - `scripts/final_audit.ps1`: creates `final-summary.md` from local artifacts, Git status, and `git diff --check`.
 - `references/decomposition-template.md`: standard decomposition output contract.
 - `references/audit-template.md`: standard audit output contract.

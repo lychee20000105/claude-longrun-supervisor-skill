@@ -3,7 +3,10 @@ param(
   [Parameter(Mandatory=$true)][string]$Objective,
   [double]$Hours = 12,
   [string]$OutputRoot = '',
-  [int]$StatusCheckMinutes = 5,
+  [int]$StatusCheckMinutes = 20,
+  [int]$FastStatusCheckMinutes = 5,
+  [int]$QuietStatusCheckMinutes = 30,
+  [switch]$FixedStatusCheck,
   [int]$AuditEveryRounds = 3,
   [int]$NoIssueSwitchRounds = 5,
   [string]$ClaudeCommand = 'claude',
@@ -28,6 +31,19 @@ function Write-Log([string]$Message) {
   Add-Content -LiteralPath $SupervisorLog -Value $line -Encoding UTF8
 }
 
+
+function Get-StatusCheckSeconds {
+  param(
+    [int]$Round = 0,
+    [string]$State = 'running',
+    [switch]$HadSignal
+  )
+  if ($FixedStatusCheck) { return [Math]::Max(30, $StatusCheckMinutes * 60) }
+  if ($HadSignal -or $State -in @('auditing','draining','final_audit')) { return [Math]::Max(30, $FastStatusCheckMinutes * 60) }
+  if ($Round -le 1) { return [Math]::Max(60, $StatusCheckMinutes * 60) }
+  return [Math]::Max(60, $QuietStatusCheckMinutes * 60)
+}
+
 function Write-State([string]$State, [int]$Round, [string]$Note, [int[]]$WorkerPids = @()) {
   $obj = [ordered]@{
     state = $State
@@ -42,6 +58,8 @@ function Write-State([string]$State, [int]$Round, [string]$Note, [int[]]$WorkerP
     repo = $Repo
     outputRoot = $OutputRoot
     supervisorLog = $SupervisorLog
+    checkPolicy = if ($FixedStatusCheck) { 'fixed' } else { 'adaptive' }
+    nextSuggestedSupervisorCheckAt = (Get-Date).AddSeconds((Get-StatusCheckSeconds -Round $Round -State $State)).ToString('o')
   }
   ($obj | ConvertTo-Json -Depth 6) | Set-Content -LiteralPath $StatusFile -Encoding UTF8
 @"
@@ -222,7 +240,7 @@ while ($true) {
   Write-State 'running' $round "Worker round $round running." @($workerPid)
 
   while ($true) {
-    Start-Sleep -Seconds ([Math]::Max(30, $StatusCheckMinutes * 60))
+    Start-Sleep -Seconds (Get-StatusCheckSeconds -Round $round -State 'running')
     $proc = Get-Process -Id $workerPid -ErrorAction SilentlyContinue
     if (-not $proc) { break }
     Write-State 'running' $round "Worker round $round still active." @($workerPid)
@@ -246,7 +264,7 @@ while ($true) {
     $auditPid = [int]$auditLaunch.pid
     Write-Log "audit for round $round started pid=$auditPid"
     while ($true) {
-      Start-Sleep -Seconds ([Math]::Max(30, $StatusCheckMinutes * 60))
+      Start-Sleep -Seconds (Get-StatusCheckSeconds -Round $round -State 'auditing' -HadSignal)
       $aproc = Get-Process -Id $auditPid -ErrorAction SilentlyContinue
       if (-not $aproc) { break }
       Write-State 'auditing' $round "Audit for round $round still active." @($auditPid)

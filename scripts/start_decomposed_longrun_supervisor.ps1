@@ -3,7 +3,10 @@ param(
   [Parameter(Mandatory=$true)][string]$Objective,
   [double]$Hours = 12,
   [string]$OutputRoot = '',
-  [int]$StatusCheckMinutes = 5,
+  [int]$StatusCheckMinutes = 20,
+  [int]$FastStatusCheckMinutes = 5,
+  [int]$QuietStatusCheckMinutes = 30,
+  [switch]$FixedStatusCheck,
   [int]$AuditEveryBatches = 1,
   [int]$MaxParallelWorkers = 0,
   [string]$ClaudeCommand = 'claude',
@@ -24,6 +27,19 @@ foreach($required in @($RunRoundScript,$ParsePlanScript,$ParallelScript,$FinalAu
   if (-not (Test-Path -LiteralPath $required)) { throw "Required script not found: $required" }
 }
 if (-not (Test-Path -LiteralPath $Repo)) { throw "Repo not found: $Repo" }
+
+
+function Get-StatusCheckSeconds {
+  param(
+    [int]$Batch = 0,
+    [string]$State = 'running',
+    [switch]$HadSignal
+  )
+  if ($FixedStatusCheck) { return [Math]::Max(30, $StatusCheckMinutes * 60) }
+  if ($HadSignal -or $State -in @('decomposing','auditing','draining','final_audit')) { return [Math]::Max(30, $FastStatusCheckMinutes * 60) }
+  if ($Batch -le 1) { return [Math]::Max(60, $StatusCheckMinutes * 60) }
+  return [Math]::Max(60, $QuietStatusCheckMinutes * 60)
+}
 
 function Resolve-OutputRoot {
   param([string]$RepoPath,[string]$Requested)
@@ -194,7 +210,7 @@ function Invoke-ClaudePromptAndWait {
   Write-Log "$Description started pid=$pid output=$OutputFile"
   Write-State $State $Batch "$Description running." $OutputFile
   while ($true) {
-    Start-Sleep -Seconds ([Math]::Max(30, $StatusCheckMinutes * 60))
+    Start-Sleep -Seconds (Get-StatusCheckSeconds -Batch $Batch -State $State)
     $proc = Get-Process -Id $pid -ErrorAction SilentlyContinue
     if (-not $proc) { break }
     Write-State $State $Batch "$Description still active." $OutputFile

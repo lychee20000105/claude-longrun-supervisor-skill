@@ -19,7 +19,7 @@
 - **Codex 默认 goal mode**：如果上层监督者是 Codex，并且运行环境支持 goal 工具，固定时长长跑任务默认启用 goal mode。
 - **Codex 不亲自读代码**：Codex 只读状态、manifest、worker 输出、审计报告和最终总结；需要读代码、diff、日志时，必须派 Claude CLI discovery/audit worker。
 - **适合长时间本地任务**：默认支持 12h，也可配置任意小时数。
-- **默认 5 分钟状态检查**：持续写入 heartbeat/status/progress。
+- **自适应状态检查**：健康长跑默认 20 分钟检查一次，安静稳定时放宽到 30 分钟，只有新 bug、失败轮次、空输出、审计/收尾/疑似卡死时才切到 5 分钟快检。
 - **默认 30 分钟子任务粒度**：适合把大任务切成可控 worker。
 - **默认并行无固定上限**：只受 Claude CLI、本机资源和写入范围冲突限制。
 - **写入范围冲突保护**：并行任务如果写入路径重叠，脚本默认拒绝启动。
@@ -65,6 +65,15 @@ git clone https://github.com/lychee20000105/claude-longrun-supervisor-skill.git 
 - 当任务交给另一个 Codex 线程，例如 `codex://threads/...`，接收线程也必须遵守同样规则：先 goal mode，再读状态/报告，不亲自下场读代码。
 - 到点 draining、final audit、用户汇报摘要完成后，再把 goal 标记为 complete。
 
+## 自适应巡检策略
+
+真实 12 小时长跑里，监督者不能过于死板地每 5 分钟打扰一次。当前版本默认按任务风险自适应调整：
+
+- **20 分钟**：默认健康轮询间隔，适合 worker 正常运行、状态有进展的阶段。
+- **30 分钟**：长时间安静且没有失败信号时的低噪音巡检间隔。
+- **5 分钟**：仅用于用户刚反馈 bug、worker 失败/空输出、审计/收尾/final audit、或疑似卡死等高风险阶段。
+- **状态持久化**：脚本会写入 `checkPolicy` 和 `nextSuggestedSupervisorCheckAt`，方便 Codex/自动化线程按建议时间再检查，而不是机械刷屏。
+
 ## 最推荐入口：完整自动化长跑
 
 ```powershell
@@ -73,6 +82,8 @@ powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\claude-
   -Objective "修复并验证这个本地任务，持续推进直到时间到点" `
   -Hours 12
 ```
+
+如果确实需要固定间隔，可显式追加 `-FixedStatusCheck`；否则建议保持默认自适应参数：`-StatusCheckMinutes 20 -FastStatusCheckMinutes 5 -QuietStatusCheckMinutes 30`。
 
 这个脚本会自动串起：
 
@@ -95,6 +106,8 @@ powershell -ExecutionPolicy Bypass -File "$env:USERPROFILE\.codex\skills\claude-
 | `scripts/run_round.ps1` | 启动单个 Claude CLI prompt |
 | `scripts/watchdog.ps1` | 观察长跑状态，不轻易杀进程 |
 | `scripts/final_audit.ps1` | 汇总 artifacts，生成 `final-summary.md` |
+
+`watchdog.ps1` 也默认使用自适应间隔：`-CheckSeconds 1200 -FastCheckSeconds 300 -QuietCheckSeconds 1800`。需要固定间隔时再追加 `-FixedCheck`。
 
 ## 输出目录
 

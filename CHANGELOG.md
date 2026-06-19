@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.3 - 2026-06-19
+
+- Added adaptive supervisor check cadence: default 20-minute checks, quiet healthy 30-minute checks, and 5-minute fast checks only for fresh bugs, failures, empty rounds, audit/drain/final states, or suspected stuck states.
+- Added status metadata `checkPolicy` and `nextSuggestedSupervisorCheckAt` so Codex/automation supervisors can avoid noisy repeated inspections.
+- Updated sequential, decomposed, and watchdog PowerShell scripts to support adaptive timing while preserving fixed-mode switches.
+- Documented field lessons from a real long-running mini program bugfix session: zero-byte live Claude logs, duration-first stop conditions, resume round numbering, and installed skill directory as source of truth.
+- Updated README usage notes for adaptive cadence parameters and watchdog timing.
 
 ## v0.4.2 - 2026-06-19
 
